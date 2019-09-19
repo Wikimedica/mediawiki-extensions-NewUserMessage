@@ -243,6 +243,45 @@ class NewUserMessage {
 	public static function leaveUserMessage( $user, $wikiPage, $subject, $text, $signature,
 			$summary, $editor, $flags
 	) {
+		// Post the message using Flow if the extension is installed.
+		if(\ExtensionRegistry::getInstance()->isLoaded( 'Flow' ) && 
+			defined('CONTENT_MODEL_FLOW_BOARD') && 
+			$wikiPage->getContentModel() == CONTENT_MODEL_FLOW_BOARD)
+		{
+			global $wgParser;
+			
+			// Setup our Flow objects.
+			$factory = Flow\Container::get( 'factory.loader.workflow' );
+			$loader = $factory->createWorkflowLoader( $wikiPage->getTitle() );
+			$blocks = $loader->getBlocks();
+			$workflow = $loader->getWorkflow();
+			
+			$context = \RequestContext::getMain();
+			$contextUser = $context->getUser();
+			$context->setUser($editor);
+			
+			$blocksToCommit = $loader->handleSubmit(
+				$context,
+				'new-topic',
+				['topiclist' => [
+					'topic' => $wgParser->preprocess($subject, $wikiPage->getTitle(), \ParserOptions::newFromContext($context)), // Expand the template
+					'content' => $text, // Leave the template as is. 
+					'format' => 'wikitext',
+					'token' => $user->getEditToken()
+				]]
+			);
+			
+			$commitMetadata = $loader->commit( $blocksToCommit );
+			
+			$context->setUser($contextUser); // Restore the context user.
+			
+			/* Force the "You have a new message" notification on.
+			 * (Flow cancels it for a reason...)*/
+			$user->setNewtalk(true, $wikiPage->getRevision());
+			
+			return true;
+		}
+		
 		$text = self::formatUserMessage( $subject, $text, $signature );
 		$flags = $wikiPage->checkFlags( $flags );
 

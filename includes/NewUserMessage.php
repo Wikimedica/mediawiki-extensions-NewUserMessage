@@ -243,6 +243,8 @@ class NewUserMessage {
 	public static function leaveUserMessage( $user, $wikiPage, $subject, $text, $signature,
 			$summary, $editor, $flags
 	) {
+		return true;
+		
 		// Post the message using Flow if the extension is installed.
 		if(\ExtensionRegistry::getInstance()->isLoaded( 'Flow' ) && 
 			defined('CONTENT_MODEL_FLOW_BOARD') && 
@@ -252,12 +254,13 @@ class NewUserMessage {
 			
 			// Setup our Flow objects.
 			$factory = Flow\Container::get( 'factory.loader.workflow' );
-			$loader = $factory->createWorkflowLoader( $wikiPage->getTitle() );
-			$blocks = $loader->getBlocks();
+			$loader = $factory->createWorkflowLoader( $user->getUserPage() );
 			$workflow = $loader->getWorkflow();
 			
 			$context = \RequestContext::getMain();
-			$contextUser = $context->getUser();
+			/* THE EDITOR USER MUST EXIST! 
+			 * Where a system user can be used when leaving a message on a classic talk page,
+			 * Flow needs a real user for that purpose so newusermessage-editor cannot function here.*/
 			$context->setUser($editor);
 			
 			$blocksToCommit = $loader->handleSubmit(
@@ -273,7 +276,7 @@ class NewUserMessage {
 			
 			$commitMetadata = $loader->commit( $blocksToCommit );
 			
-			$context->setUser($contextUser); // Restore the context user.
+			$context->setUser($user); // Restore the context user.
 			
 			/* Force the "You have a new message" notification on.
 			 * (Flow cancels it for a reason...)*/

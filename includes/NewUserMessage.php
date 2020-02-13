@@ -11,6 +11,8 @@
  * @copyright 2009 Siebrand Mazeland
  */
 
+use MediaWiki\MediaWikiServices;
+
 class NewUserMessage {
 	/**
 	 * Produce the editor for new user messages.
@@ -124,7 +126,7 @@ class NewUserMessage {
 	 * @param User $user
 	 * @param User $editor
 	 * @param Title $talk
-	 * @param bool $preparse If provided, then preparse the string using a Parser
+	 * @param string|null $preparse If provided, then preparse the string using a Parser
 	 * @return string
 	 */
 	private static function substString( $str, $user, $editor, $talk, $preparse = null ) {
@@ -142,9 +144,8 @@ class NewUserMessage {
 		}
 
 		if ( $preparse ) {
-			global $wgParser;
-
-			$str = $wgParser->preSaveTransform( $str, $talk, $editor, new ParserOptions );
+			$str = MediaWikiServices::getInstance()->getParser()
+				->preSaveTransform( $str, $talk, $editor, new ParserOptions );
 		}
 
 		return $str;
@@ -205,7 +206,7 @@ class NewUserMessage {
 
 					NewUserMessage::createNewUserMessage( $user );
 				},
-				$autocreated ? DeferredUpdates::POSTSEND : DeferredUpdates::PRESEND
+				DeferredUpdates::PRESEND
 			);
 		} elseif ( $wgNewUserMessageOnAutoCreate ) {
 			JobQueueGroup::singleton()->lazyPush(
@@ -288,7 +289,10 @@ class NewUserMessage {
 		$flags = $wikiPage->checkFlags( $flags );
 
 		if ( $flags & EDIT_UPDATE ) {
-			$text = $wikiPage->getContent( Revision::RAW ) . "\n" . $text;
+			$content = $wikiPage->getContent( Revision::RAW );
+			if ( $content !== null ) {
+				$text = $content->getNativeData() . "\n" . $text;
+			}
 		}
 
 		$status = $wikiPage->doEditContent(

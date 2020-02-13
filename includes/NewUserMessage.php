@@ -222,7 +222,7 @@ class NewUserMessage {
 	 * @return bool
 	 */
 	public static function onUserGetReservedNames( &$names ) {
-		$names[] = 'msg:newusermessage-editor';
+		//$names[] = 'msg:newusermessage-editor';
 		return true;
 	}
 
